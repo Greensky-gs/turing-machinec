@@ -81,6 +81,8 @@ TuringState machine_create_state(TuringMachine machine) {
 	TuringState state = create_state(machine->id_gen, NULL, NULL, "01", "11");
 	if (state == NULL) return NULL;
 
+	state_edit_oed(state, 1);
+	state_edit_zed(state, 0);
 	state_edit_reds(state, state, state);
 	machine->id_gen++;
 
@@ -142,7 +144,9 @@ int machine_valid(TuringMachine machine) {
 	while (cell != NULL) {
 		TuringState state = cell->value;
 
-		if (!check_deps(machine, state)) return 0;
+		if (!check_deps(machine, state)) {
+			return 0;
+		}
 
 		cell = cell->next;
 	}
@@ -220,4 +224,141 @@ long int machine_evaluate(TuringMachine machine, char * input, long int * lastp)
 			return c;
 		}
 	}	
+}
+
+static char * direction(char i) {
+	if (i == '0') return "left";
+	return "right";
+}
+static void display_state(TuringState state) {
+	int zero = state->zero_state == NULL ? -1 : state->zero_state->id;
+	int one = state->one_state == NULL ? -1 : state->one_state->id;
+	printf("State : \x1b[31m%d\x1b[0m\n  On zero : move to \x1b[33m%d\x1b[0m, write : %c and move %s\n  On one : move to \x1b[33m%d\x1b[0m, write %c, and go to %s\n", state->id, zero, 48 + state->zero[0], direction(state->zero[1]), one, 48 + state->one[0], direction(state->one[1]));
+}
+void display_machine(TuringMachine machine) {
+	printf("Machine ID generator : %d\n  Intial : \x1b[33m%d\x1b[0m\n  Stop : \x1b[33m%d\x1b[0m\n   States :\n", machine->id_gen, machine->initial == NULL ? -1 : machine->initial->id, machine->stop == NULL ? -1 : machine->stop->id);
+
+	if (machine->states->entries == 0) {
+		printf("  No states\n");
+		return;
+	}
+	ChainedCell cell = machine->states->entry;
+	while (cell != NULL) {
+		display_state(cell->value);
+		cell = cell->next;
+	}
+	return;
+}
+
+// Saves
+static int save_state(TuringState state, FILE * stream) {
+	int zero = state->zero_state == NULL ? -1 : state->zero_state->id;
+	int one = state->one_state == NULL ? -1 : state->one_state->id;
+
+	return fprintf(stream, "%d %d %d %c%c%c%c\n", state->id, zero, one, state->zero[0], state->zero[1], state->one[0], state->one[1]) > 0;
+}
+int save_machine(TuringMachine machine, char * name) {
+	if (!machine_valid(machine)) return -1;
+
+	FILE * stream = fopen(name, "wb");
+	if (stream == NULL) return -2;
+
+	fprintf(stream, "%d %d %d %d\n", machine->id_gen, machine->states->entries, machine->initial->id, machine->stop->id);
+
+	ChainedCell cell = machine->states->entry;
+	while (cell != NULL) {
+		TuringState state = cell->value;
+
+		if (save_state(state, stream) == 0) return -3;
+
+		cell = cell->next;
+	}
+
+	fclose(stream);
+	return 1;
+}
+
+static TuringState load_state(FILE * stream) {
+	TuringState state;
+	if ((state = malloc(sizeof(struct sTuringState))) == NULL) return NULL;
+
+	long int zid, oid;
+	if (fscanf(stream, "%d %ld %ld %c%c%c%c", &(state->id), &zid, &oid, state->zero, state->zero + 1, state->one, state->one + 1) < 7) {
+		free(state);
+		return NULL;
+	}
+
+	state->zero_state = (TuringState)zid;
+	state->one_state = (TuringState)oid;
+
+	return state;
+}
+
+TuringMachine load_machine(char * path) {
+	FILE * stream = fopen(path, "rb");
+	if (!stream) return NULL;
+
+	TuringMachine machine = create_machine();
+
+	int iid, sid, entries;
+	if (fscanf(stream, "%d %d %d %d", &(machine->id_gen), &entries, &iid, &sid) < 4) {
+		free(machine);
+		return NULL;
+	};
+
+	int i = 0;
+	while (i < entries) {
+		TuringState parsed = load_state(stream);
+		if (parsed == NULL) {
+			destroy_machine(&machine);
+			return NULL;
+		}
+		cl_append(machine->states, parsed);
+		i++;
+	}
+
+	ChainedCell cell = machine->states->entry;
+	while (cell != NULL) {
+		TuringState state = cell->value;
+		if (state->zero_state != (TuringState)-1) {
+			int id = (long int)state->zero_state;
+			TuringState ref = machine_find_state(machine, id);
+			if (ref == NULL) {
+				destroy_machine(&machine);
+				return NULL;
+			}
+
+			state->zero_state = ref;
+		} else state->zero_state = NULL;
+		if (state->one_state != (TuringState)-1) {
+			int id = (long int)state->one_state;
+			TuringState ref = machine_find_state(machine, id);
+			if (ref == NULL) {
+				destroy_machine(&machine);
+				return NULL;
+			}
+
+			state->one_state = ref;
+		} else state->one_state = NULL;
+
+		cell = cell->next;
+	}
+	int found = 0;
+	cell = machine->states->entry;
+	while (cell != NULL && found != 2) {
+		TuringState state = cell->value;
+		if (state->id == iid) {
+			machine->initial = state;
+			found++;
+		}
+		if (state->id == sid) {
+			machine->stop = state;
+			found++;
+		}
+		cell = cell->next;
+	}
+
+
+	fclose(stream);
+	return machine;
 }

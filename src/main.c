@@ -15,11 +15,17 @@ int main() {
 	state_edit_zed(move_til_end_of_ones, 0);
 
 	state_edit_reds(move_til_end_of_ones, end, move_til_end_of_ones);
+	state_edit_reds(end, end, end);
+
 
 	machine_set_initial(machine, move_til_end_of_ones);
 	machine_set_stop(machine, end);
 
-	printf("Machine validi : \x1b[31m%d\x1b[0m\n", machine_valid(machine));
+	display_machine(machine);
+
+	printf("Save result : %d\n", save_machine(machine, "save.mch"));
+
+	printf("Machine valid : \x1b[31m%d\x1b[0m\n", machine_valid(machine));
 
 	char * input = malloc(10);
 	int j = 0;

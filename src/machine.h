@@ -37,6 +37,10 @@ extern int machine_include_deps(TuringMachine);
 extern TuringState machine_find_state(TuringMachine, int);
 extern int machine_valid(TuringMachine);
 
+extern int save_machine(TuringMachine, char *);
+extern void display_machine(TuringMachine);
+extern TuringMachine load_machine(char *);
+
 
 // State edition
 extern void state_edit_reds(TuringState, TuringState zero, TuringState one);

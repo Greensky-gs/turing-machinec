@@ -96,20 +96,128 @@ static int compare_two(void * pa, void * pb) {
 }
 
 TuringState machine_find_state(TuringMachine machine, int id) {
-	TuringState result;
-	if ((result = create_state(-1, NULL, NULL, "00", "11"))) return NULL;
 	TuringState template = create_state(id, NULL, NULL, "00", "00");
-	if (template == NULL) {
-		destroy_state(result);
-		return NULL;
-	};
+	if (template == NULL) return NULL;
 
-	cl_find_template(machine->states, result, sizeof(TuringState), template, compare_two);
+	TuringState rep = cl_find_ref_template(machine->states, template, compare_two);
 
 	free(template);
-	return result;
+	return rep;
 }
 
 TuringState machine_set_initial(TuringMachine machine, TuringState state) {
 	return machine->initial = state;
+}
+TuringState machine_set_stop(TuringMachine machine, TuringState state) {
+	return machine->stop = state;
+}
+
+int machine_append_state(TuringMachine machine, TuringState state) {
+	if (machine_find_state(machine, state->id) != NULL) {
+		return 0;
+	}
+
+	cl_append(machine->states, state);
+	return 1;
+}
+
+static int check_deps(TuringMachine machine, TuringState state) {
+	if (state->zero_state != NULL) {
+		if (machine_find_state(machine, state->zero_state->id) == NULL) return 0;
+	}
+	if (state->one_state != NULL) {
+		if (machine_find_state(machine, state->one_state->id) == NULL) return 0;
+	}
+	return 1;
+}
+int machine_valid(TuringMachine machine) {
+	if (machine->initial == NULL) return 0;
+	if (machine->stop == NULL) return 0;
+
+	if (!check_deps(machine, machine->initial)) return 0;
+	if (!check_deps(machine, machine->stop)) return 0;
+
+	ChainedCell cell = machine->states->entry;
+
+	while (cell != NULL) {
+		TuringState state = cell->value;
+
+		if (!check_deps(machine, state)) return 0;
+
+		cell = cell->next;
+	}
+
+	return 1;
+}
+
+static int include_deps(TuringMachine machine, TuringState state) {
+	int i = 0;
+	if (machine_find_state(machine, state->zero_state->id) == NULL) {
+		i += machine_append_state(machine, state->zero_state);
+	}
+	if (machine_find_state(machine, state->one_state->id) == NULL) {
+		i += machine_append_state(machine, state->one_state);
+	}
+
+	return i;
+}
+int machine_include_deps(TuringMachine machine) {
+	int i = 0;
+	ChainedCell cell = machine->states->entry;
+
+	if (machine->initial != NULL) i+= include_deps(machine, machine->initial);
+	if (machine->stop != NULL) i+= include_deps(machine, machine->stop);
+
+	while (cell != NULL) {
+		TuringState state = cell->value;
+
+		i += include_deps(machine, state);
+
+		cell = cell->next;
+	}
+
+	return i;
+}
+
+static int valid_input(char * input) {
+	int i = 0;
+	while (input[i] != 0) {
+		if (input[i] != '0' && input[i] != '1') return 0;
+		i++;
+	}
+	return 1;
+}
+
+long int machine_evaluate(TuringMachine machine, char * input, long int * lastp) {
+	if (!machine_valid(machine)) return -1;
+	if (!valid_input(input)) return -1;
+
+	long int i = 0;
+	long int c = 0;
+
+	TuringState current = machine->initial;
+
+	while (1) {
+		int num = input[i] == '1';
+
+		char * move = num ? current->one : current->zero;
+		*(input + i) = 48 + (int)move[0];
+
+
+		if (num) current = current->one_state;
+		else current = current->zero_state;
+
+		if (move[1] == 0) {
+			if (i == 0) return -2;
+			i--;
+		} else {
+			i++;
+		}
+		c++;
+
+		if (current->id == machine->stop->id) {
+			*lastp = i - 1;
+			return c;
+		}
+	}	
 }

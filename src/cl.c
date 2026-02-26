@@ -115,3 +115,14 @@ int cl_find_template(ChainedList cl, void *p, size_t t, void * template, int cmp
 
 	return -1;
 }
+
+void * cl_find_ref_template(ChainedList cl, void * template, int cmp(void *, void *)) {
+	ChainedCell cell = cl->entry;
+
+	while (cell != NULL) {
+		if (cmp(cell->value, template)) return cell->value;
+		cell = cell->next;
+	}
+
+	return NULL;
+}

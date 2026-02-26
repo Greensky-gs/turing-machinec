@@ -6,22 +6,33 @@
 int main() {
 	TuringMachine machine = create_machine();
 
-	int i = 0;
+	TuringState move_til_end_of_ones = machine_create_state(machine);
+	TuringState end = machine_create_state(machine);
 
-	while (i < 20) {
-		printf("Creating state %d\n", i);
-		machine_create_state(machine);
-		i++;
-	
-	}
+	state_edit_omv(move_til_end_of_ones, 1);
+	state_edit_oed(move_til_end_of_ones, 1);
+	state_edit_zmv(move_til_end_of_ones, 1);
+	state_edit_zed(move_til_end_of_ones, 0);
 
-	TuringState zeroth = machine_find_state(machine, 0);
+	state_edit_reds(move_til_end_of_ones, end, move_til_end_of_ones);
 
-	printf("zeroth = \x1b[31m%p\x1b[0m\n", zeroth);
-	printf("ID = %d\n", zeroth->id);
+	machine_set_initial(machine, move_til_end_of_ones);
+	machine_set_stop(machine, end);
 
-	machine_set_initial(machine, zeroth);
+	printf("Machine validi : \x1b[31m%d\x1b[0m\n", machine_valid(machine));
+
+	char * input = malloc(10);
+	int j = 0;
+	while (j < 9) input[j++] = '1';
+	input[j++] = '0';
+	input[j++] = 0;
+
+	long int last;
+	long int res = machine_evaluate(machine, input, &last);
+
+	printf("res = %ld\nPosition de la tête de lecture sur le ruban : %ld\n", res, last);
+
 	destroy_machine(&machine);
 	
-	printf("Hello world!\n");
+	free(input);
 }

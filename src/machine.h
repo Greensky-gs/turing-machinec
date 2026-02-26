@@ -16,6 +16,7 @@ struct sTuringMachine {
 	int id_gen;
 	ChainedList states;
 	TuringState initial;
+	TuringState stop;
 };
 typedef struct sTuringMachine * TuringMachine;
 
@@ -27,10 +28,14 @@ extern void destroy_machine(TuringMachine *);
 extern TuringState machine_create_state(TuringMachine);
 
 // Machine edits
+extern int machine_append_state(TuringMachine, TuringState);
 extern TuringState machine_set_initial(TuringMachine, TuringState);
+extern TuringState machine_set_stop(TuringMachine, TuringState);
+extern int machine_include_deps(TuringMachine);
 
 // Machine utils
 extern TuringState machine_find_state(TuringMachine, int);
+extern int machine_valid(TuringMachine);
 
 
 // State edition
@@ -42,4 +47,8 @@ extern void state_edit_zmv(TuringState, char);
 
 extern void state_edit_one(TuringState, char, char);
 extern void state_edit_zer(TuringState, char, char);
+
+// Machine start
+//   Important: A zero in the input is evaluated as a '0' and a '1' as a '1', not the numerical values 
+extern long int machine_evaluate(TuringMachine, char * input, long int *);
 #endif

@@ -10,13 +10,15 @@ BIN_DIR=bin
 SOURCES=$(wildcard $(SRC_DIR)/*.c)
 OBJECTS=$(SOURCES:$(SRC_DIR)/%.c=$(BUILD_DIR)/%.o)
 
+GTK_INCLUDE=$$(pkg-config --cflags --libs gtk+-3.0) 
+
 all: $(BUILD_DIR) $(BIN_DIR) $(BIN_DIR)/$(OUTPUT)
 
 $(BUILD_DIR)/%.o: $(SRC_DIR)/%.c
-	$(CC) $(FLAGS) $^ -o $@ -c
+	$(CC) $(FLAGS) $^ -o $@ -c $(GTK_INCLUDE)
 
 $(BIN_DIR)/$(OUTPUT): $(OBJECTS)
-	$(CC) $(OBJECTS) $(FLAGS) $(SANTS) -o $(BIN_DIR)/$(OUTPUT)
+	$(CC) $(OBJECTS) $(FLAGS) $(SANTS) $(GTK_INCLUDE) -o $(BIN_DIR)/$(OUTPUT)
 
 $(BUILD_DIR):
 	mkdir $(BUILD_DIR) -p
